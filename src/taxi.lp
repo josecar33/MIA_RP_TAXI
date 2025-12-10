@@ -95,47 +95,72 @@ at_taxi(T,R,C,S1) :-
 % --- Pasajeros: dentro/fuera del taxi ---
 
 % Un pasajero queda 'ocupando' un taxi si está dentro
+occupied(T,S) :- in_taxi(P,T,S).
 
 % Evitar que un taxi coja a alguien si ya lleva pasajero
+:- pick(T,S), occupied(T,S).
 
 % Acción de recoger: si taxi y pasajero están en misma celda y taxi libre
-
+picked(P,T,S) :-
+    pick(T,S),
+    at_taxi(T,R,C,S),
+    at_passenger(P,R,C,S),
+    not occupied(T,S).
 
 % Tras recoger, pasajero pasa a estar dentro en el siguiente paso
-
+in_taxi(P,T,S1) :-
+    picked(P,T,S),
+    succ(S,S1).
 
 % Inercia: si está dentro y no es soltado, sigue dentro
-
+in_taxi(P,T,S1) :-
+    in_taxi(P,T,S),
+    succ(S,S1),
+    not drop(T,S).
 
 % Cuando se suelta un pasajero, pasa a estar fuera en la celda del taxi
-
+at_passenger(P,R,C,S1) :-
+    drop(T,S),
+    in_taxi(P,T,S),
+    at_taxi(T,R,C,S),
+    succ(S,S1).
 
 % Pasajero fuera: si estaba fuera y no ha sido recogido, se queda donde estaba
-
+at_passenger(P,R,C,S1) :-
+    at_passenger(P,R,C,S),
+    succ(S,S1),
+    not picked(P,T,S) : taxi(T).
 
 % --- Restricciones de ocupación (personas / taxis) ---
 
 % Dos taxis no pueden compartir celda
+:- at_taxi(T1,R,C,S), at_taxi(T2,R,C,S), T1 < T2.
 
 % Dos pasajeros fuera no pueden compartir celda
+:- at_passenger(P1,R,C,S), at_passenger(P2,R,C,S), P1 < P2.
 
 % Pasajero fuera + taxi con ocupante en misma celda prohibido
+:- at_passenger(P,R,C,S), at_taxi(T,R,C,S), occupied(T,S).
 
 % --- Prohibir intercambio de posición entre taxis en un paso ---
-
+:- at_taxi(T1,R1,C1,S),
+   at_taxi(T2,R2,C2,S),
+   at_taxi(T1,R2,C2,S1),
+   at_taxi(T2,R1,C1,S1),
+   T1 < T2,
+   succ(S,S1).
 
 % --- Objetivo: al final (maxT), todos los pasajeros en estaciones y fuera de taxis ---
 
 % Cada pasajero debe estar en alguna estación en tiempo maxT
+:- passenger(P),
+   not 1 { (R,C) : at_passenger(P,R,C,maxT), station(R,C) } 1.
 
 % Ningún pasajero dentro de taxi en tiempo maxT
+:- in_taxi(P,T,maxT).
 
 % --- Mostrar solo el plan (las acciones) ---
-
-"""
-
-with open("taxi.lp", "w", encoding="utf-8") as f:
-    f.write(taxi_lp)
-
-print("[OK] Creado taxi.lp")
-!sed -n '1,60p' taxi.lp
+#show move/3.
+#show pick/2.
+#show drop/2.
+#show wait/2.
